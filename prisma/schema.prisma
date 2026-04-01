@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Form {
+  id               String     @id @default(cuid())
+  slug             String     @unique
+  title            String
+  status           FormStatus @default(DRAFT)
+  definition       Json
+  submitSecretHash String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
