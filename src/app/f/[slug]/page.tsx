@@ -28,6 +28,7 @@ export default async function PublicFormPage({ params }: PageProps) {
         variant="live"
         definition={definition}
         slug={slug}
+        formId={row.id}
         submitAuthRequired={Boolean(row.submitSecretHash)}
       />
     </div>

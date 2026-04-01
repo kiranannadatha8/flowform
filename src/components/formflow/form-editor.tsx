@@ -50,6 +50,10 @@ export function FormEditor({ formId }: Props) {
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [publishSecret, setPublishSecret] = useState<string | null>(null);
   const [generateSecretOnPublish, setGenerateSecretOnPublish] = useState(false);
+  const [aiContextJson, setAiContextJson] = useState("{}");
+  const [aiSuggestions, setAiSuggestions] = useState<FormField[] | null>(null);
+  const [aiSelected, setAiSelected] = useState<Record<string, boolean>>({});
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,6 +101,7 @@ export function FormEditor({ formId }: Props) {
     const nextDef: FormDefinition = {
       ...definition,
       branchRules: parsedRules.length > 0 ? parsedRules : undefined,
+      settings: definition.settings,
     };
 
     setSaving(true);
@@ -347,6 +352,56 @@ export function FormEditor({ formId }: Props) {
               onChange={(e) => setSlug(e.target.value)}
             />
           </label>
+          <div className="sm:col-span-2 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Phase 2 · AI</p>
+            <label className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                className="mt-1"
+                disabled={draftLocked}
+                checked={Boolean(definition.settings?.aiRuntimeSuggestions)}
+                onChange={(e) =>
+                  setDefinition({
+                    ...definition,
+                    settings: {
+                      ...definition.settings,
+                      aiRuntimeSuggestions: e.target.checked,
+                    },
+                  })
+                }
+              />
+              <span>
+                Allow optional <strong>runtime</strong> AI follow-ups after steps where a field has
+                “AI follow-ups (runtime)” enabled. Requires{" "}
+                <code className="font-mono text-xs">OPENAI_API_KEY</code> for live models.
+              </span>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-zinc-600 dark:text-zinc-400">
+                Max AI suggestion rounds per respondent
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={20}
+                className="max-w-xs rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                disabled={draftLocked}
+                value={definition.settings?.aiMaxRuntimeCallsPerSession ?? 3}
+                onChange={(e) => {
+                  const n = Number.parseInt(e.target.value, 10);
+                  setDefinition({
+                    ...definition,
+                    settings: {
+                      ...definition.settings,
+                      aiMaxRuntimeCallsPerSession: Number.isNaN(n)
+                        ? undefined
+                        : Math.max(0, Math.min(20, n)),
+                    },
+                  });
+                }}
+              />
+            </label>
+          </div>
         </div>
       </section>
 
@@ -418,7 +473,119 @@ export function FormEditor({ formId }: Props) {
               onReorder={(o, n) => reorderFieldList(activeStep.id, o, n)}
               onChangeField={(fieldId, patch) => changeField(activeStep.id, fieldId, patch)}
               onRemove={(fieldId) => removeField(activeStep.id, fieldId)}
+              showAiFlags
+              disabled={draftLocked}
             />
+
+            {!draftLocked && (
+              <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900 dark:bg-violet-950/30">
+                <h4 className="text-sm font-medium text-violet-900 dark:text-violet-100">
+                  AI: suggest fields for this step
+                </h4>
+                <p className="mt-1 text-xs text-violet-800/90 dark:text-violet-200/90">
+                  Calls the builder suggestion API with optional sample answers. Accept suggestions
+                  into this step — you can edit labels and kinds after.
+                </p>
+                <textarea
+                  className="mt-3 w-full rounded-lg border border-violet-200 bg-white p-2 font-mono text-xs dark:border-violet-800 dark:bg-zinc-950"
+                  rows={3}
+                  value={aiContextJson}
+                  onChange={(e) => setAiContextJson(e.target.value)}
+                  placeholder='Optional JSON answers, e.g. {"field-name": "Acme Inc"}'
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full bg-violet-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+                    disabled={aiLoading}
+                    onClick={() => {
+                      void (async () => {
+                        setAiLoading(true);
+                        setError(null);
+                        try {
+                          let answers: Record<string, unknown> = {};
+                          try {
+                            answers = JSON.parse(aiContextJson || "{}") as Record<string, unknown>;
+                          } catch {
+                            setError("AI context must be valid JSON");
+                            return;
+                          }
+                          const res = await fetch("/api/ai/suggest-followup", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              formId,
+                              stepId: activeStep.id,
+                              answers,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            throw new Error(data.error ?? "Suggestion failed");
+                          }
+                          const list = data.suggestions as FormField[];
+                          setAiSuggestions(Array.isArray(list) ? list : []);
+                          const sel: Record<string, boolean> = {};
+                          for (const f of list ?? []) {
+                            sel[f.id] = true;
+                          }
+                          setAiSelected(sel);
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : "AI suggest failed");
+                        } finally {
+                          setAiLoading(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {aiLoading ? "Generating…" : "Generate suggestions"}
+                  </button>
+                </div>
+                {aiSuggestions && aiSuggestions.length > 0 && (
+                  <ul className="mt-4 space-y-2 border-t border-violet-200 pt-3 dark:border-violet-800">
+                    {aiSuggestions.map((f) => (
+                      <li key={f.id} className="flex items-start gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={Boolean(aiSelected[f.id])}
+                          onChange={(e) =>
+                            setAiSelected((s) => ({ ...s, [f.id]: e.target.checked }))
+                          }
+                        />
+                        <span>
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {f.label}
+                          </span>{" "}
+                          <span className="text-xs text-zinc-500">({f.kind})</span>
+                        </span>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        type="button"
+                        className="mt-2 rounded-full border border-violet-300 px-3 py-1 text-sm font-medium text-violet-900 hover:bg-violet-100 dark:border-violet-700 dark:text-violet-100 dark:hover:bg-violet-950"
+                        onClick={() => {
+                          if (!definition || !activeStep || !aiSuggestions) return;
+                          const chosen = aiSuggestions.filter((f) => aiSelected[f.id]);
+                          setDefinition({
+                            ...definition,
+                            steps: definition.steps.map((s) =>
+                              s.id === activeStep.id
+                                ? { ...s, fields: [...s.fields, ...chosen] }
+                                : s,
+                            ),
+                          });
+                          setAiSuggestions(null);
+                        }}
+                      >
+                        Add selected to this step
+                      </button>
+                    </li>
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>

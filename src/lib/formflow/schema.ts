@@ -58,6 +58,16 @@ export const branchRuleSchema = z.object({
 
 export type BranchRule = z.infer<typeof branchRuleSchema>;
 
+/** Phase 2 — optional form-level behaviour (AI runtime, caps, etc.). */
+export const formSettingsSchema = z.object({
+  /** When true, live/preview runtimes may call AI after certain steps (see field `aiAssist.suggestFollowUps`). */
+  aiRuntimeSuggestions: z.boolean().optional(),
+  /** Max AI suggestion rounds per end-user session (default 3 in UI if unset). */
+  aiMaxRuntimeCallsPerSession: z.number().int().min(0).max(20).optional(),
+});
+
+export type FormSettings = z.infer<typeof formSettingsSchema>;
+
 export const formDefinitionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -65,6 +75,7 @@ export const formDefinitionSchema = z.object({
   version: z.number().int().positive().default(1),
   steps: z.array(formStepSchema).min(1),
   branchRules: z.array(branchRuleSchema).optional(),
+  settings: formSettingsSchema.optional(),
 });
 
 export type FormDefinition = z.infer<typeof formDefinitionSchema>;

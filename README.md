@@ -52,12 +52,22 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST /api/forms/[formId]/submit` | Validate answers (draft or published; preview) |
 | `GET /api/public/forms/[slug]` | Published definition only (embed) |
 | `POST /api/public/forms/[slug]/submit` | Validate answers; optional `X-FormFlow-Submit-Secret` or `submitSecret` |
-| `POST /api/ai/suggest-followup` | AI suggestions (stub without `OPENAI_API_KEY`) |
+| `POST /api/ai/suggest-followup` | Builder AI field suggestions (rate-limited; Zod-validated output) |
+| `POST /api/ai/runtime-suggestions` | Optional runtime follow-up fields (`settings.aiRuntimeSuggestions` + field flag) |
+| `POST /api/ai/validate-hint` | Soft advisory hint; **submit still uses Zod only** |
+
+### Phase 2 (AI, controllable)
+
+- **Form settings:** `definition.settings.aiRuntimeSuggestions`, `aiMaxRuntimeCallsPerSession` (editor toggles).
+- **Per-field:** “AI follow-ups (runtime)” and “AI soft hint” in the builder.
+- **Prompts:** versioned in `src/lib/formflow/ai/prompts.ts` (`AI_PROMPT_VERSION`).
+- **Guards:** `FORMFLOW_AI_MAX_REQUESTS_PER_MINUTE`, `FORMFLOW_AI_MAX_CONTEXT_CHARS`, capped model output, fallback stubs on parse/model errors.
 
 ## Project layout
 
 - `prisma/` — schema, migrations, seed (`demo-contact` slug)
 - `src/lib/formflow/` — schemas, branching, validation, forms service
+- `src/lib/formflow/ai/` — prompts, rate limits, suggestion + hint generation
 - `src/lib/db.ts` — Prisma client singleton
 - `src/app/api/` — internal + public REST
 - `src/components/formflow/` — builder UI
