@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  createFormSubmission,
   getFormBySlug,
   toPublicDefinition,
   verifySubmitForForm,
@@ -45,5 +46,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
   }
 
-  return NextResponse.json({ ok: true, received: true });
+  const submission = await createFormSubmission(row.id, parsed.data as Record<string, unknown>);
+
+  return NextResponse.json({
+    ok: true,
+    received: true,
+    submissionId: submission.id,
+  });
 }

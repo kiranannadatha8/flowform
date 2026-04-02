@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { publishForm } from "@/lib/formflow/forms-service";
+import { countSubmissions, publishForm } from "@/lib/formflow/forms-service";
+import { requireBuilderApiAuth } from "@/lib/formflow/require-builder-api";
 
 type RouteParams = { params: Promise<{ formId: string }> };
 
 export async function POST(request: Request, { params }: RouteParams) {
+  const denied = await requireBuilderApiAuth();
+  if (denied) {
+    return denied;
+  }
   const { formId } = await params;
   const body = await request.json().catch(() => ({}));
   const generateSubmitSecret = Boolean(body.generateSubmitSecret);
@@ -19,6 +24,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const { form, submitSecret } = result;
+  const submissionCount = await countSubmissions(formId);
 
   return NextResponse.json({
     form: {
@@ -29,6 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       definition: form.definition,
       submitKeyConfigured: Boolean(form.submitSecretHash),
       updatedAt: form.updatedAt.toISOString(),
+      submissionCount,
     },
     submitSecret: submitSecret ?? null,
     message:

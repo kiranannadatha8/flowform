@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getFormRecord } from "@/lib/formflow/forms-service";
+import { requireBuilderApiAuth } from "@/lib/formflow/require-builder-api";
 import { formAnswersSchema, formDefinitionSchema } from "@/lib/formflow/schema";
 import { validateAnswers } from "@/lib/formflow/validate-answers";
 
@@ -11,6 +12,10 @@ type RouteParams = { params: Promise<{ formId: string }> };
  * POST /api/public/forms/[slug]/submit with optional submit secret.
  */
 export async function POST(request: Request, { params }: RouteParams) {
+  const denied = await requireBuilderApiAuth();
+  if (denied) {
+    return denied;
+  }
   const { formId } = await params;
   const row = await getFormRecord(formId);
   if (!row) {

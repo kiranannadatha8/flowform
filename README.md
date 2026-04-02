@@ -1,6 +1,6 @@
 # FormFlow
 
-FormFlow is a **developer-first multi-step form platform**: a single **`FormDefinition`** schema (validated with **Zod**) powers a drag-and-drop builder, draft/publish workflows, optional branching, REST embed APIs, and **optional** AI-assisted builder suggestions and runtime follow-ups.
+FormFlow is a **developer-first multi-step form platform**: a single **`FormDefinition`** schema (validated with **Zod**) powers a drag-and-drop builder, draft/publish workflows, optional branching, REST embed APIs, **persisted public responses**, optional **builder password** protection, and **optional** AI-assisted suggestions and runtime follow-ups.
 
 ---
 
@@ -14,6 +14,7 @@ FormFlow is a **developer-first multi-step form platform**: a single **`FormDefi
 - [Concepts](#concepts)
 - [API reference](#api-reference)
 - [Optional AI (Phase 2)](#optional-ai-phase-2)
+- [Phase 3 — Responses & builder access](#phase-3--responses--builder-access)
 - [Embedding a published form](#embedding-a-published-form)
 - [Scripts](#scripts)
 - [Database maintenance](#database-maintenance)
@@ -30,6 +31,7 @@ FormFlow is a **developer-first multi-step form platform**: a single **`FormDefi
 | **Branching** | Declarative rules jump between steps based on answers (see `branchRules` in the schema). |
 | **Embeds** | JSON export and public read/submit endpoints for headless or custom frontends. |
 | **AI (optional)** | Builder field ideas, runtime suggestion steps, and soft validation hints—gated by settings and env. |
+| **Responses (Phase 3)** | Successful **public** submits are stored; builder UI and JSON API to review them. |
 
 ---
 
@@ -88,6 +90,7 @@ Copy **`.env.example`** to **`.env.local`** (or `.env`) and adjust as needed.
 | `OPENAI_API_KEY` | No | Enables live OpenAI-backed AI features when set. |
 | `FORMFLOW_AI_MAX_REQUESTS_PER_MINUTE` | No | Per–IP sliding window cap for AI routes (default **30**, max **120**). |
 | `FORMFLOW_AI_MAX_CONTEXT_CHARS` | No | Approximate cap for answer payloads sent to prompts (default **12000**). |
+| `FORMFLOW_BUILDER_PASSWORD` | No | When set, `/builder` (except `/builder/login`) and **internal** `/api/forms/*` routes require an **`ff_builder`** session cookie from `POST /api/builder-auth`. Leave unset for local open access. |
 
 Never commit real secrets. **`.env*`** is ignored by Git.
 
@@ -121,24 +124,30 @@ On publish, you may request **`generateSubmitSecret`**. Submissions then require
 | `/builder` | List and create forms |
 | `/builder/[formId]` | Editor: steps, fields, branching JSON, Phase 2 toggles, publish |
 | `/builder/[formId]/preview` | Preview runtime; submits to internal submit API |
+| `/builder/[formId]/responses` | List stored **public** submissions (Phase 3) |
+| `/builder/login` | Builder password sign-in when `FORMFLOW_BUILDER_PASSWORD` is set |
 | `/f/[slug]` | Live runner for **published** forms |
 
-### Internal (authenticated app / builder)
+### Internal (builder; optional password)
+
+When **`FORMFLOW_BUILDER_PASSWORD`** is set, these routes require a valid builder session cookie (sign in at **`/builder/login`** via **`POST /api/builder-auth`**). When unset, behavior matches legacy open dev mode.
 
 | Method & path | Description |
 |---------------|-------------|
+| `POST /api/builder-auth` | Body `{ "password": "…" }` → sets session cookie; **`DELETE`** clears it |
 | `GET`, `POST /api/forms` | List forms, create form |
-| `GET`, `PATCH /api/forms/[formId]` | Read / update draft (**409** if published) |
+| `GET`, `PATCH /api/forms/[formId]` | Read / update draft (**409** if published); includes **`submissionCount`** |
 | `POST /api/forms/[formId]/publish` | Publish; optional `{ generateSubmitSecret?: boolean }` |
-| `POST /api/forms/[formId]/submit` | Validate answers (preview / draft flows) |
+| `POST /api/forms/[formId]/submit` | Validate answers (preview / draft flows); **not** persisted |
 | `GET /api/forms/[formId]/export` | Download `FormDefinition` JSON |
+| `GET /api/forms/[formId]/submissions` | Paginated submission history (`?limit=`, `?cursor=`); Phase 3 |
 
 ### Public (embed)
 
 | Method & path | Description |
 |---------------|-------------|
 | `GET /api/public/forms/[slug]` | Published definition JSON (**404** if not published) |
-| `POST /api/public/forms/[slug]/submit` | Validate and accept submission; optional submit secret |
+| `POST /api/public/forms/[slug]/submit` | Validate and accept submission; optional submit secret; **persists** answers on success (**`submissionId`** in JSON) |
 
 ### Optional AI
 
@@ -164,11 +173,22 @@ AI features are **opt-in** at both deployment and definition level.
 
 ---
 
+## Phase 3 — Responses & builder access
+
+1. **Persistence:** Each successful **`POST /api/public/forms/[slug]/submit`** creates a **`FormSubmission`** row (`answers` JSON, `createdAt`). Deletes cascade when the parent **`Form`** is removed.
+2. **Not stored:** Internal **`POST /api/forms/[formId]/submit`** (preview) remains ephemeral.
+3. **UI:** **`/builder/[formId]/responses`** — paginated list and JSON; **Responses** link + badge in the editor.
+4. **Export:** Open **`GET /api/forms/[formId]/submissions?limit=500`** in the browser while signed in (same cookie) for a JSON download.
+5. **Privacy:** Treat stored answers as **PII**; restrict production database access and use **`FORMFLOW_BUILDER_PASSWORD`** (or a future SSO layer) before exposing the app on the public internet.
+6. **AI routes** (`/api/ai/*`) remain rate-limited but **not** behind the builder cookie; tighten network access or add auth in a later hardening pass if needed.
+
+---
+
 ## Embedding a published form
 
 1. **Fetch definition:** `GET /api/public/forms/<slug>`.
 2. **Render** in a Next.js or React app using **`<FormRuntime variant="live" definition={...} slug="..." />`**, or build your own UI against the same JSON.
-3. **Submit:** `POST /api/public/forms/<slug>/submit` with `{ "answers": { ... } }` and optional secret if configured.
+3. **Submit:** `POST /api/public/forms/<slug>/submit` with `{ "answers": { ... } }` and optional secret if configured. On **200**, the body includes **`submissionId`** when the row was stored (Phase 3).
 
 ---
 
@@ -215,7 +235,7 @@ npm run db:seed
 ```
 formflow/
 ├── prisma/
-│   ├── schema.prisma          # PostgreSQL datasource + Form model
+│   ├── schema.prisma          # Form + FormSubmission (Phase 3)
 │   ├── seed.ts                # Optional demo form (slug: demo-contact)
 │   └── migrations/            # SQL migrations
 ├── prisma.config.ts           # Prisma 6 project config + seed command

@@ -158,3 +158,55 @@ export function toPublicDefinition(form: Form): FormDefinition {
 export function verifySubmitForForm(form: Form, secret: string | undefined): boolean {
   return verifySubmitSecret(secret ?? "", form.submitSecretHash);
 }
+
+export async function countSubmissions(formId: string): Promise<number> {
+  return prisma.formSubmission.count({ where: { formId } });
+}
+
+export async function createFormSubmission(
+  formId: string,
+  answers: Record<string, unknown>,
+): Promise<{ id: string }> {
+  const row = await prisma.formSubmission.create({
+    data: {
+      formId,
+      answers: answers as object,
+    },
+    select: { id: true },
+  });
+  return row;
+}
+
+export type SubmissionListItem = {
+  id: string;
+  createdAt: Date;
+  answers: Record<string, unknown>;
+};
+
+export async function listFormSubmissions(
+  formId: string,
+  opts: { limit: number; cursor?: string },
+): Promise<{ items: SubmissionListItem[]; nextCursor: string | null }> {
+  const limit = Math.min(Math.max(opts.limit, 1), 100);
+  const rows = await prisma.formSubmission.findMany({
+    where: { formId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(opts.cursor
+      ? {
+          cursor: { id: opts.cursor },
+          skip: 1,
+        }
+      : {}),
+    select: { id: true, answers: true, createdAt: true },
+  });
+
+  const hasMore = rows.length > limit;
+  const items = rows.slice(0, limit).map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    answers: r.answers as Record<string, unknown>,
+  }));
+  const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null;
+  return { items, nextCursor };
+}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { BuilderSignOut } from "@/components/formflow/builder-sign-out";
 import { CreateFormButton } from "@/components/formflow/create-form-button";
+import { builderPasswordConfigured } from "@/lib/formflow/builder-auth";
 import { listForms } from "@/lib/formflow/forms-service";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +21,12 @@ export default async function BuilderIndexPage() {
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Forms
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+                Forms
+              </h1>
+              {builderPasswordConfigured() ? <BuilderSignOut /> : null}
+            </div>
             <p className="mt-1 text-zinc-600 dark:text-zinc-400">
               Drafts are editable; published forms are served from{" "}
               <code className="font-mono text-xs">/api/public/forms/&lt;slug&gt;</code>.

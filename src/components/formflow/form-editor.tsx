@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { BuilderSignOut } from "@/components/formflow/builder-sign-out";
 import { SortableFormFields, reorderFields } from "@/components/formflow/sortable-form-fields";
 import type { FieldKind, FormDefinition, FormField, FormStep } from "@/lib/formflow/schema";
 import { branchRuleSchema, formDefinitionSchema } from "@/lib/formflow/schema";
@@ -35,9 +36,9 @@ function defaultField(kind: FieldKind): FormField {
   return base;
 }
 
-type Props = { formId: string };
+type Props = { formId: string; builderAuthEnabled?: boolean };
 
-export function FormEditor({ formId }: Props) {
+export function FormEditor({ formId, builderAuthEnabled = false }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +55,7 @@ export function FormEditor({ formId }: Props) {
   const [aiSuggestions, setAiSuggestions] = useState<FormField[] | null>(null);
   const [aiSelected, setAiSelected] = useState<Record<string, boolean>>({});
   const [aiLoading, setAiLoading] = useState(false);
+  const [submissionCount, setSubmissionCount] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +73,9 @@ export function FormEditor({ formId }: Props) {
       setDefinition(def);
       setBranchJson(JSON.stringify(def.branchRules ?? [], null, 2));
       setActiveStepId(def.steps[0]?.id ?? null);
+      setSubmissionCount(
+        typeof data.form.submissionCount === "number" ? data.form.submissionCount : null,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -127,6 +132,9 @@ export function FormEditor({ formId }: Props) {
       setTitle(data.form.title);
       setStatus(data.form.status);
       setBranchJson(JSON.stringify(def.branchRules ?? [], null, 2));
+      setSubmissionCount(
+        typeof data.form.submissionCount === "number" ? data.form.submissionCount : null,
+      );
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -152,6 +160,9 @@ export function FormEditor({ formId }: Props) {
       const data = await res.json();
       setStatus(data.form.status);
       setDefinition(formDefinitionSchema.parse(data.form.definition));
+      setSubmissionCount(
+        typeof data.form.submissionCount === "number" ? data.form.submissionCount : null,
+      );
       if (typeof data.submitSecret === "string") {
         setPublishSecret(data.submitSecret);
       }
@@ -265,6 +276,7 @@ export function FormEditor({ formId }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Edit form
           </h1>
+          {builderAuthEnabled ? <BuilderSignOut /> : null}
           <span
             className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
               status === "PUBLISHED"
@@ -282,6 +294,17 @@ export function FormEditor({ formId }: Props) {
           </code>
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href={`/builder/${formId}/responses`}
+            className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Responses
+            {submissionCount !== null ? (
+              <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                {submissionCount}
+              </span>
+            ) : null}
+          </Link>
           <Link
             href={`/builder/${formId}/preview`}
             className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"

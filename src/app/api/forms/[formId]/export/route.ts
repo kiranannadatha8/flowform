@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 
 import { getFormRecord, toPublicDefinition } from "@/lib/formflow/forms-service";
+import { requireBuilderApiAuth } from "@/lib/formflow/require-builder-api";
 
 type RouteParams = { params: Promise<{ formId: string }> };
 
 /** Download FormDefinition JSON (Phase 0 static export for embeds / hand-built demos). */
 export async function GET(_request: Request, { params }: RouteParams) {
+  const denied = await requireBuilderApiAuth();
+  if (denied) {
+    return denied;
+  }
   const { formId } = await params;
   const row = await getFormRecord(formId);
   if (!row) {
