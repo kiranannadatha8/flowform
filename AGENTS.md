@@ -1,5 +1,22 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Agent notes — FormFlow
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+## Next.js
+
+This project targets **Next.js 16**. App Router layouts, APIs, and conventions can differ from older majors. Before implementing routing or server features, consult the in-repo guides under `node_modules/next/dist/docs/` when something does not match expectations.
+
+## Project focus
+
+- **Source of truth:** `src/lib/formflow/schema.ts` (`FormDefinition`, steps, fields, branching, settings).
+- **Persistence:** Prisma + PostgreSQL; config in `prisma.config.ts` (loads `.env` then `.env.local`).
+- **AI:** Optional; gated by env and definition settings under `src/lib/formflow/ai/`.
+
+## Where to look
+
+| Concern | Location |
+|---------|----------|
+| Public + internal HTTP API | `src/app/api/` |
+| Builder UI | `src/components/formflow/form-editor.tsx`, `sortable-form-fields.tsx` |
+| Runtime UX | `src/components/formflow/form-runtime.tsx` |
+| Domain logic | `src/lib/formflow/` |
+
+Human-oriented setup, env vars, and route tables: **`README.md`**.
