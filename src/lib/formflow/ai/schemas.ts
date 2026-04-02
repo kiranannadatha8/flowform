@@ -52,5 +52,5 @@ export function mapAiSuggestionsToFormFields(rows: AiFieldSuggestion[]): FormFie
 }
 
 export const aiHintResponseSchema = z.object({
-  hint: z.string().max(200).nullable(),
+  hint: z.string().max(120).nullable(),
 });

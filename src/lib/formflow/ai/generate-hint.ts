@@ -48,7 +48,8 @@ export async function generateValidateHint(params: {
     if (!r.success || r.data.hint == null) {
       return { hint: null, mode: "openai", promptVersion: AI_PROMPT_VERSION };
     }
-    return { hint: r.data.hint, mode: "openai", promptVersion: AI_PROMPT_VERSION };
+    const trimmed = r.data.hint.slice(0, 120);
+    return { hint: trimmed.length > 0 ? trimmed : null, mode: "openai", promptVersion: AI_PROMPT_VERSION };
   } catch {
     return { hint: null, mode: "stub", promptVersion: AI_PROMPT_VERSION };
   }

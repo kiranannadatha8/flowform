@@ -50,6 +50,15 @@ export async function generateFollowupSuggestions(params: {
   const answers = sanitizeAnswersForPrompt(params.answers);
 
   if (!process.env.OPENAI_API_KEY) {
+    // Builder: deterministic stub so the UI works without a key. Runtime: never fake an interstitial.
+    if (params.mode === "runtime") {
+      return {
+        mode: "stub",
+        rawSuggestions: [],
+        suggestions: [],
+        promptVersion: AI_PROMPT_VERSION,
+      };
+    }
     const raw = stubSuggestions(params.mode, max);
     return {
       mode: "stub",

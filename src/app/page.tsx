@@ -45,11 +45,15 @@ export default function Home() {
           </Link>
         </div>
 
-        <ul className="grid gap-4 sm:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { title: "Zod schemas", body: "Shared validation for API + runtime." },
             { title: "@dnd-kit", body: "Accessible drag-and-drop in the builder." },
-            { title: "Prisma + SQLite", body: "Draft/publish storage with public embed APIs." },
+            { title: "Prisma + Postgres", body: "Draft/publish storage with public embed APIs." },
+            {
+              title: "Phase 2 AI",
+              body: "Runtime follow-ups, soft hints, rate limits, and versioned prompts — all optional.",
+            },
           ].map((item) => (
             <li
               key={item.title}

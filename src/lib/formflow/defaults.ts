@@ -22,6 +22,10 @@ export const demoFormDefinition: FormDefinition = {
   title: "Contact intake",
   description: "Example multi-step form with AI-assisted fields.",
   version: 1,
+  settings: {
+    aiRuntimeSuggestions: true,
+    aiMaxRuntimeCallsPerSession: 3,
+  },
   steps: [
     {
       id: "step-basics",

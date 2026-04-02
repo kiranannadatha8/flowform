@@ -7,7 +7,7 @@ Intelligent multi-step form builder: **Zod** `FormDefinition`, **@dnd-kit** buil
 - [Next.js 16](https://nextjs.org) (App Router, TypeScript)
 - [Tailwind CSS v4](https://tailwindcss.com)
 - [Zod](https://zod.dev) — shared schemas, path-aware validation with branching
-- [Prisma 6](https://www.prisma.io) + SQLite locally (swap `DATABASE_URL` for Postgres in production)
+- [Prisma 6](https://www.prisma.io) + **PostgreSQL** in Docker for local dev
 - [@dnd-kit](https://dndkit.com) — field reordering in the builder
 - [AI SDK](https://sdk.vercel.ai/docs) + `@ai-sdk/openai` — optional `/api/ai/suggest-followup`
 
@@ -16,14 +16,38 @@ Intelligent multi-step form builder: **Zod** `FormDefinition`, **@dnd-kit** buil
 ```bash
 npm install
 cp .env.example .env.local
-# Set DATABASE_URL (SQLite file lives next to prisma/schema.prisma, e.g. prisma/dev.db)
-# Optional: OPENAI_API_KEY for AI routes
-npm run db:migrate
-npm run db:seed
+# .env.local defaults to Postgres on localhost:5433 (see Docker below)
+
+npm run docker:up
+# Wait until the db container is healthy (~5–15s), then:
+npx prisma migrate deploy
+npm run db:seed   # optional: demo-contact form
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### Prisma CLI (`DATABASE_URL`)
+
+Configuration lives in **`prisma.config.ts`** (replaces deprecated `package.json#prisma`). It loads **`.env`** then **`.env.local`** so `npx prisma migrate deploy` and `npx prisma db seed` work the same way as Next.js without exporting variables manually.
+
+### Database (Docker)
+
+PostgreSQL 16 runs via **Docker Compose** (user/password/db: `formflow` / `formflow` / `formflow`).
+
+```bash
+npm run docker:up      # start Postgres in background
+npm run docker:logs    # optional: watch logs
+npm run docker:down    # stop (volume keeps data)
+```
+
+`DATABASE_URL` in `.env.example` uses host port **5433** (mapped from the container’s 5432):
+
+`postgresql://formflow:formflow@localhost:5433/formflow?schema=public`
+
+To use host port 5432 instead, change the `ports` mapping in `docker-compose.yml` and `DATABASE_URL` accordingly.
+
+For a fresh schema: `npm run docker:down`, remove the Docker volume (`docker volume rm formflow_formflow_pgdata` or `docker compose down -v`), then `docker:up` and `prisma migrate deploy` again.
 
 ## Phase 0 (foundation)
 
@@ -56,12 +80,14 @@ Open [http://localhost:3000](http://localhost:3000).
 | `POST /api/ai/runtime-suggestions` | Optional runtime follow-up fields (`settings.aiRuntimeSuggestions` + field flag) |
 | `POST /api/ai/validate-hint` | Soft advisory hint; **submit still uses Zod only** |
 
-### Phase 2 (AI, controllable)
+### Phase 2 (AI, controllable) — implemented
 
-- **Form settings:** `definition.settings.aiRuntimeSuggestions`, `aiMaxRuntimeCallsPerSession` (editor toggles).
-- **Per-field:** “AI follow-ups (runtime)” and “AI soft hint” in the builder.
-- **Prompts:** versioned in `src/lib/formflow/ai/prompts.ts` (`AI_PROMPT_VERSION`).
-- **Guards:** `FORMFLOW_AI_MAX_REQUESTS_PER_MINUTE`, `FORMFLOW_AI_MAX_CONTEXT_CHARS`, capped model output, fallback stubs on parse/model errors.
+- **Form settings:** `definition.settings.aiRuntimeSuggestions`, `aiMaxRuntimeCallsPerSession` (toggles in the builder **Details** section).
+- **Per-field:** “AI follow-ups (runtime)” and “AI soft hint” on each field (when **Show** AI flags is enabled in the field list).
+- **Runtime:** optional interstitial step after **Continue** when form + field flags allow it; **Skip suggestions** bypasses. Submit validation remains Zod-only; extra AI field keys merge into answers when types match.
+- **Soft hints:** blur on fields with “AI soft hint” calls `POST /api/ai/validate-hint` (advisory only).
+- **Prompts:** versioned in `src/lib/formflow/ai/prompts.ts` (`AI_PROMPT_VERSION`); API responses include `promptVersion` where applicable.
+- **Guards:** `FORMFLOW_AI_MAX_REQUESTS_PER_MINUTE`, `FORMFLOW_AI_MAX_CONTEXT_CHARS`, capped `maxOutputTokens`, JSON parse + Zod fallbacks; **builder** uses stub suggestions when `OPENAI_API_KEY` is unset; **runtime** does not show a fake interstitial without a key.
 
 ## Project layout
 
@@ -78,3 +104,4 @@ Open [http://localhost:3000](http://localhost:3000).
 - `npm run build` — production build
 - `npm run lint` — ESLint
 - `npm run db:*` — Prisma generate / migrate / push / seed
+- `npm run docker:*` — start/stop/logs for Postgres
