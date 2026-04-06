@@ -19,6 +19,9 @@ FormFlow is a **developer-first multi-step form platform**: a single **`FormDefi
 - [Scripts](#scripts)
 - [Database maintenance](#database-maintenance)
 - [Repository layout](#repository-layout)
+- [Testing & CI](#testing--ci)
+- [Deployment (production)](#deployment-production)
+- [License](#license)
 
 ---
 
@@ -52,6 +55,7 @@ FormFlow is a **developer-first multi-step form platform**: a single **`FormDefi
 
 - **Node.js** 20+ (recommended; align with `@types/node` in the repo)
 - **npm** (or compatible client)
+- **Node 20+** (see `engines` in `package.json`)
 - **Docker Desktop** (or Docker Engine + Compose) for the default local database
 
 ---
@@ -82,7 +86,7 @@ Open **http://localhost:3000**.
 
 ## Configuration
 
-Copy **`.env.example`** to **`.env.local`** (or `.env`) and adjust as needed.
+Copy **[`.env.example`](.env.example)** (tracked in Git) to **`.env.local`** (or `.env`) and adjust as needed.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
@@ -159,6 +163,12 @@ When **`FORMFLOW_BUILDER_PASSWORD`** is set, these routes require a valid builde
 
 Responses may include **`promptVersion`** (see `src/lib/formflow/ai/prompts.ts`).
 
+### Operations
+
+| Method & path | Description |
+|---------------|-------------|
+| `GET /api/health` | JSON liveness probe (**`ok`**, **`service`**, **`ts`**) — does not query the database |
+
 ---
 
 ## Optional AI (Phase 2)
@@ -207,6 +217,9 @@ AI features are **opt-in** at both deployment and definition level.
 | `npm run docker:up` | `docker compose up -d` (Postgres) |
 | `npm run docker:down` | `docker compose down` |
 | `npm run docker:logs` | Tail database logs |
+| `npm run test:e2e` | [Playwright](https://playwright.dev) E2E (`build` + `start` + tests; needs DB + seed for full suite) |
+| `npm run test:e2e:smoke` | Health + Phase 0 demo only (no seeded form) |
+| `npm run test:e2e:ui` | Playwright UI mode |
 
 `postinstall` runs **`prisma generate`** so CI and fresh clones get a client.
 
@@ -247,9 +260,47 @@ formflow/
 │       ├── db.ts              # Prisma singleton
 │       └── formflow/          # Schema, branching, validation, forms service
 │           └── ai/            # Prompts, rate limits, generation helpers
+├── e2e/                       # Playwright specs
+├── playwright.config.ts
+├── .github/workflows/         # CI (lint, build, migrate, seed, E2E)
 ├── AGENTS.md                  # Notes for AI coding agents
-└── CLAUDE.md                  # Short pointer for Claude / Cursor context
+├── CLAUDE.md                  # Short pointer for Claude / Cursor context
+└── LICENSE                    # MIT
 ```
+
+---
+
+## Testing & CI
+
+**GitHub Actions** (`.github/workflows/ci.yml`) on push/PR to **`main`**: starts PostgreSQL 16, runs `prisma migrate deploy`, **`npm run db:seed`**, **`npm run lint`**, **`npm run build`**, then **`npx playwright test`** (Chromium).
+
+**Local full E2E** (matches CI):
+
+```bash
+npm run docker:up
+npx prisma migrate deploy
+npm run db:seed
+npm run build
+CI=true npx playwright test
+```
+
+Without a database, run **`npm run test:e2e:smoke`** only.
+
+---
+
+## Deployment (production)
+
+1. **Database:** managed PostgreSQL (Neon, RDS, Supabase, etc.). Set **`DATABASE_URL`** in the host environment.
+2. **Migrations:** run **`npx prisma migrate deploy`** on each release (Vercel post-deploy command, Fly release phase, Kubernetes Job, etc.).
+3. **Env vars:** at minimum **`DATABASE_URL`**. Optional: **`OPENAI_API_KEY`**, **`FORMFLOW_BUILDER_PASSWORD`** (recommended for any public URL), AI guardrails, submit secrets per form.
+4. **Health checks:** point your platform at **`GET /api/health`**.
+5. **Build:** `npm run build` then `npm run start` (or the platform’s Next.js adapter). Ensure **`postinstall`** / **`prisma generate`** runs so the client exists in the deployment image.
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see [`LICENSE`](LICENSE).
 
 ---
 

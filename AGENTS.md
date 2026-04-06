@@ -20,5 +20,6 @@ This project targets **Next.js 16**. App Router layouts, APIs, and conventions c
 | Domain logic | `src/lib/formflow/` |
 | Builder session + middleware | `src/lib/formflow/builder-auth.ts`, `src/middleware.ts` |
 | Phase 3 submissions | `prisma/schema.prisma` (`FormSubmission`), `forms-service.ts`, `public/.../submit` |
+| E2E | `e2e/*.spec.ts`, `playwright.config.ts`; CI in `.github/workflows/ci.yml` |
 
 Human-oriented setup, env vars, and route tables: **`README.md`**.
