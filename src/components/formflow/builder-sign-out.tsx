@@ -1,10 +1,13 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 export function BuilderSignOut() {
   return (
-    <button
+    <Button
       type="button"
-      className="text-sm font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+      variant="ghost"
+      size="sm"
       onClick={() => {
         void (async () => {
           await fetch("/api/builder-auth", { method: "DELETE", credentials: "include" });
@@ -13,6 +16,6 @@ export function BuilderSignOut() {
       }}
     >
       Sign out
-    </button>
+    </Button>
   );
 }

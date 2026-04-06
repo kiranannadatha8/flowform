@@ -98,6 +98,10 @@ Copy **[`.env.example`](.env.example)** (tracked in Git) to **`.env.local`** (or
 
 Never commit real secrets. **`.env*`** is ignored by Git.
 
+### Design tokens (Phase A UI)
+
+Semantic colors and typography are defined in **`src/app/globals.css`** (CSS variables + Tailwind `@theme`). Reference table: **[`docs/ui-tokens.md`](docs/ui-tokens.md)**. Shared primitives live under **`src/components/ui/`** (`Button`, `ButtonLink`, `Card`, `PageHeader`, `FeatureCard`).
+
 ---
 
 ## Concepts
@@ -260,6 +264,8 @@ formflow/
 │       ├── db.ts              # Prisma singleton
 │       └── formflow/          # Schema, branching, validation, forms service
 │           └── ai/            # Prompts, rate limits, generation helpers
+├── docs/
+│   └── ui-tokens.md           # Phase A design token reference
 ├── e2e/                       # Playwright specs
 ├── playwright.config.ts
 ├── .github/workflows/         # CI (lint, build, migrate, seed, E2E)
@@ -285,6 +291,8 @@ CI=true npx playwright test
 ```
 
 Without a database, run **`npm run test:e2e:smoke`** only.
+
+Locally, Playwright starts **`next start`** on port **3010** by default (or **3000** when **`CI=true`**) and does **not** reuse an existing process, so tests hit the app from your latest **`npm run build`**. Set **`PW_REUSE_SERVER=1`** to attach to a server already listening on that port, or **`PLAYWRIGHT_PORT`** to choose a port.
 
 ---
 

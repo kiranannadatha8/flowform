@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { getNextStepId } from "@/lib/formflow/branching";
 import type { FormAnswers, FormDefinition, FormField, FormStep } from "@/lib/formflow/schema";
@@ -216,17 +216,20 @@ export function FormRuntime(props: FormRuntimeProps) {
   const [runtimeAiCallsUsed, setRuntimeAiCallsUsed] = useState(0);
   const [hints, setHints] = useState<Record<string, string>>({});
 
+  const answersRef = useRef<FormAnswers>({});
+  answersRef.current = answers;
+
   const currentStepId = history[history.length - 1] ?? "";
   const currentStep: FormStep | undefined = useMemo(
     () => definition.steps.find((s) => s.id === currentStepId),
     [definition.steps, currentStepId],
   );
 
-  const displayFields = interstitialFields;
-  const displayTitle = interstitialFields
+  const showingAiInterstitial = Boolean(interstitialFields?.length);
+  const displayTitle = showingAiInterstitial
     ? "Suggested follow-up (optional)"
     : currentStep?.title ?? "";
-  const displayDescription = interstitialFields
+  const displayDescription = showingAiInterstitial
     ? "Optional. Official validation still uses your published fields only; extra answers are stored as additional keys."
     : currentStep?.description;
 
@@ -251,8 +254,8 @@ export function FormRuntime(props: FormRuntimeProps) {
           body: JSON.stringify({
             formId: fid,
             fieldId,
-            value: answers[fieldId],
-            answers,
+            value: answersRef.current[fieldId],
+            answers: answersRef.current,
 }),
         });
         const data = (await res.json()) as { hint?: string | null };
@@ -270,7 +273,7 @@ export function FormRuntime(props: FormRuntimeProps) {
   }
 
   function onBack() {
-    if (interstitialFields) {
+    if (showingAiInterstitial) {
       setInterstitialFields(null);
       setFieldErrors({});
       return;
@@ -314,7 +317,7 @@ export function FormRuntime(props: FormRuntimeProps) {
     setErrorMessage(null);
     setServerFieldErrors(null);
     try {
-      const res = await submitToServer(answers);
+      const res = await submitToServer(answersRef.current);
       const data = (await res.json().catch(() => ({}))) as {
         fieldErrors?: Record<string, string>;
         error?: string;
@@ -340,7 +343,7 @@ export function FormRuntime(props: FormRuntimeProps) {
   function skipInterstitialAndAdvance() {
     setInterstitialFields(null);
     setFieldErrors({});
-    const nextId = getNextStepId(definition, currentStepId, answers);
+    const nextId = getNextStepId(definition, currentStepId, answersRef.current);
     if (nextId !== null) {
       setHistory((h) => [...h, nextId]);
       setServerFieldErrors(null);
@@ -362,8 +365,8 @@ export function FormRuntime(props: FormRuntimeProps) {
     if (enabled && currentStep) {
       const body =
         variant === "live"
-          ? { slug: props.slug, stepId: currentStepId, answers }
-          : { formId: props.formId, stepId: currentStepId, answers };
+          ? { slug: props.slug, stepId: currentStepId, answers: answersRef.current }
+          : { formId: props.formId, stepId: currentStepId, answers: answersRef.current };
 
       setLoading(true);
       try {
@@ -386,7 +389,7 @@ export function FormRuntime(props: FormRuntimeProps) {
       }
     }
 
-    const nextId = getNextStepId(definition, currentStepId, answers);
+    const nextId = getNextStepId(definition, currentStepId, answersRef.current);
     if (nextId !== null) {
       setHistory((h) => [...h, nextId]);
       setServerFieldErrors(null);
@@ -397,20 +400,20 @@ export function FormRuntime(props: FormRuntimeProps) {
   }
 
   async function onPrimary() {
-    if (interstitialFields && interstitialFields.length > 0) {
+    if (showingAiInterstitial && interstitialFields) {
       const synthetic: FormStep = {
         id: "_ai_interstitial",
         title: "AI",
         fields: interstitialFields,
       };
-      const errs = fieldErrorsForStep(synthetic, answers);
+      const errs = fieldErrorsForStep(synthetic, answersRef.current);
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
         return;
       }
       setFieldErrors({});
       setInterstitialFields(null);
-      const nextId = getNextStepId(definition, currentStepId, answers);
+      const nextId = getNextStepId(definition, currentStepId, answersRef.current);
       if (nextId !== null) {
         setHistory((h) => [...h, nextId]);
         setServerFieldErrors(null);
@@ -423,7 +426,7 @@ export function FormRuntime(props: FormRuntimeProps) {
 
     if (!currentStep) return;
 
-    const errs = fieldErrorsForStep(currentStep, answers);
+    const errs = fieldErrorsForStep(currentStep, answersRef.current);
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       return;
@@ -452,13 +455,15 @@ export function FormRuntime(props: FormRuntimeProps) {
   }
 
   const mergedErrors = mergeErrors(fieldErrors, serverFieldErrors);
-  const fieldsToRender = displayFields ?? currentStep.fields;
+  const fieldsToRender = showingAiInterstitial && interstitialFields
+    ? interstitialFields
+    : currentStep.fields;
 
   const primaryLabel = loading
     ? "Sending…"
-    : interstitialFields
+    : showingAiInterstitial
       ? "Continue"
-      : getNextStepId(definition, currentStepId, answers) === null
+      : getNextStepId(definition, currentStepId, answersRef.current) === null
         ? "Submit"
         : "Continue";
 
@@ -473,7 +478,7 @@ export function FormRuntime(props: FormRuntimeProps) {
         </div>
         <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           Step {history.length}
-          {interstitialFields ? " · AI" : ""}
+          {showingAiInterstitial ? " · AI" : ""}
         </span>
       </div>
 
@@ -483,7 +488,7 @@ export function FormRuntime(props: FormRuntimeProps) {
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{displayDescription}</p>
         )}
 
-        {interstitialFields && (
+        {showingAiInterstitial && (
           <p className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900 dark:bg-violet-950/50 dark:text-violet-100">
             AI-generated optional fields. Submit validation still follows your published{" "}
             <code className="font-mono">FormDefinition</code>; extra keys are accepted if types
@@ -520,7 +525,7 @@ export function FormRuntime(props: FormRuntimeProps) {
           ))}
         </div>
 
-        {variant === "live" && props.submitAuthRequired && !interstitialFields && (
+        {variant === "live" && props.submitAuthRequired && !showingAiInterstitial && (
           <label className="mt-6 flex flex-col gap-1 text-sm">
             <span className="font-medium text-zinc-800 dark:text-zinc-200">Submit secret</span>
             <input
@@ -542,13 +547,13 @@ export function FormRuntime(props: FormRuntimeProps) {
           <button
             type="button"
             onClick={onBack}
-            disabled={(history.length <= 1 && !interstitialFields) || loading}
+            disabled={(history.length <= 1 && !showingAiInterstitial) || loading}
             className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
           >
             Back
           </button>
           <div className="flex flex-wrap gap-2">
-            {interstitialFields && (
+            {showingAiInterstitial && (
               <button
                 type="button"
                 onClick={skipInterstitialAndAdvance}

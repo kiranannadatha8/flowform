@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+
 export function CreateFormButton() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -27,13 +29,8 @@ export function CreateFormButton() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => void onCreate()}
-      disabled={pending}
-      className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-    >
+    <Button type="button" variant="primary" size="md" disabled={pending} onClick={() => void onCreate()}>
       {pending ? "Creating…" : "New form"}
-    </button>
+    </Button>
   );
 }
