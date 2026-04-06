@@ -1,10 +1,8 @@
 import Link from "next/link";
 
-import { BuilderSignOut } from "@/components/formflow/builder-sign-out";
 import { CreateFormButton } from "@/components/formflow/create-form-button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { builderPasswordConfigured } from "@/lib/formflow/builder-auth";
 import { listForms } from "@/lib/formflow/forms-service";
 
 export const dynamic = "force-dynamic";
@@ -13,16 +11,8 @@ export default async function BuilderIndexPage() {
   const forms = await listForms();
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-8 bg-background px-6 py-12">
+    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-8">
       <PageHeader
-        eyebrow={
-          <Link
-            href="/"
-            className="font-medium text-muted transition-colors hover:text-foreground"
-          >
-            ← FormFlow
-          </Link>
-        }
         title="Forms"
         description={
           <>
@@ -30,12 +20,7 @@ export default async function BuilderIndexPage() {
             <code>/api/public/forms/&lt;slug&gt;</code>.
           </>
         }
-        actions={
-          <>
-            {builderPasswordConfigured() ? <BuilderSignOut /> : null}
-            <CreateFormButton />
-          </>
-        }
+        actions={<CreateFormButton />}
       />
 
       <Card className="overflow-hidden p-0">

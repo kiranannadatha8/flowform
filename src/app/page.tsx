@@ -1,19 +1,27 @@
 import { ButtonLink } from "@/components/ui/button";
 import { FeatureCard } from "@/components/ui/card";
+import { AppShell } from "@/components/shell/app-shell";
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-6 py-24">
+    <AppShell
+      navLinks={[
+        { href: "/builder", label: "Builder" },
+        { href: "/demo", label: "Demo" },
+        { href: "/f/demo-contact", label: "Live sample" },
+      ]}
+      contentClassName="max-w-3xl"
+      mainClassName="py-20"
+    >
+      <div className="flex flex-col gap-12">
         <div className="flex flex-col gap-4">
-          <p className="text-sm font-medium text-accent">FormFlow</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            Intelligent multi-step forms, built for developers.
+          <p className="text-sm font-medium text-accent">Professional forms, developer speed.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            Design, publish, and embed intelligent multi-step forms.
           </h1>
-          <p className="max-w-xl text-lg leading-relaxed text-muted">
-            Drag-and-drop builder, AI-aware fields for follow-ups and validation, and exports as
-            embeddable React plus a REST API — all backed by a single{" "}
-            <span className="font-mono text-sm text-foreground">FormDefinition</span> schema.
+          <p className="max-w-2xl text-lg leading-relaxed text-muted">
+            FormFlow gives you one schema for builder UI, runtime, validation, and APIs. Ship forms
+            quickly with branching, AI assist, and production-ready endpoints.
           </p>
         </div>
 
@@ -32,6 +40,21 @@ export default function Home() {
           </ButtonLink>
         </div>
 
+        <ol className="grid gap-4 rounded-xl border border-border bg-surface p-6 sm:grid-cols-3">
+          <li className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">1. Build</p>
+            <p className="text-sm text-foreground">Create steps and fields in a visual editor.</p>
+          </li>
+          <li className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">2. Publish</p>
+            <p className="text-sm text-foreground">Lock a draft into a live, versioned form.</p>
+          </li>
+          <li className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">3. Collect</p>
+            <p className="text-sm text-foreground">Embed via React or use the public submit API.</p>
+          </li>
+        </ol>
+
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { title: "Zod schemas", body: "Shared validation for API + runtime." },
@@ -47,7 +70,7 @@ export default function Home() {
             </li>
           ))}
         </ul>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

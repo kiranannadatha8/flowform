@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -44,16 +43,8 @@ export function BuilderSignInForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-8 bg-background px-6 py-24">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center gap-8">
       <PageHeader
-        eyebrow={
-          <Link
-            href="/"
-            className="font-medium text-muted transition-colors hover:text-foreground"
-          >
-            ← FormFlow
-          </Link>
-        }
         title="Builder sign-in"
         description={
           <>
